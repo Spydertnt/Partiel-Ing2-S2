@@ -37,6 +37,95 @@ void afficher(const string& s) {
 - `int* const p` : pointeur constant vers entier modifiable.
 - Eviter `using namespace std;` dans les headers.
 
+### Comprendre `const`
+
+`const` veut dire "je promets de ne pas modifier". C'est utile pour rendre le code plus sur, plus lisible, et pour permettre au compilateur de detecter des erreurs.
+
+#### Variable constante
+```cpp
+const int max = 10;
+// max = 12; // interdit
+```
+
+#### Passage par reference constante
+On l'utilise tres souvent pour eviter une copie sans autoriser la modification.
+```cpp
+void afficher(const string& nom) {
+    cout << nom << endl;
+}
+```
+
+Ici :
+- `string& nom` evite une copie, mais la fonction pourrait modifier `nom`.
+- `const string& nom` evite une copie et interdit la modification.
+- Pour les gros objets, c'est le passage le plus classique.
+
+#### Methode constante
+Une methode marquee `const` promet de ne pas modifier l'objet courant.
+```cpp
+class Fraction {
+private:
+    int numerateur;
+    int denominateur;
+
+public:
+    int getNumerateur() const {
+        return numerateur;
+    }
+};
+```
+
+Le `const` apres les parentheses concerne `this` : dans cette methode, `this` devient un pointeur vers objet constant. Donc les attributs ne peuvent pas etre modifies.
+
+```cpp
+void afficherFraction(const Fraction& f) {
+    cout << f.getNumerateur(); // possible seulement si getNumerateur() est const
+}
+```
+
+Regle simple : les getters et les methodes d'affichage/calcul doivent souvent etre `const`.
+
+#### Pointeurs et `const`
+Lire de droite a gauche aide beaucoup.
+
+```cpp
+const int* p1 = &x;  // l'entier pointe est constant via p1
+int const* p2 = &x;  // meme chose que p1
+int* const p3 = &x;  // le pointeur est constant, pas l'entier pointe
+const int* const p4 = &x; // pointeur constant vers entier constant
+```
+
+Exemples :
+```cpp
+int x = 3;
+int y = 4;
+
+const int* p1 = &x;
+// *p1 = 5; // interdit
+p1 = &y;    // autorise
+
+int* const p2 = &x;
+*p2 = 5;    // autorise
+// p2 = &y; // interdit
+```
+
+#### Retour constant
+On peut retourner une reference constante pour donner un acces en lecture seule.
+```cpp
+const string& getNom() const {
+    return nom;
+}
+```
+
+Attention : ne jamais retourner une reference vers une variable locale.
+
+#### Mini-regles partiel
+- Parametre objet non modifie : `const Type&`.
+- Methode qui ne modifie pas l'objet : ajouter `const` apres les parentheses.
+- Getter : presque toujours `const`.
+- Operateur `==`, `+`, `*`, affichage : souvent avec parametres `const`.
+- `const` avant `*` protege la valeur pointee ; `const` apres `*` protege le pointeur.
+
 ## 2. Classes, constructeurs, destructeurs, allocation dynamique
 
 ### Classe
@@ -236,6 +325,129 @@ void dessiner(const Figure& f) {
     f.affiche(); // appelle Cercle::affiche si f reference un Cercle
 }
 ```
+
+### Comprendre `virtual`
+
+Sans `virtual`, le choix de la fonction appelee depend du type de la variable ou du pointeur au moment de la compilation. C'est la liaison statique.
+
+```cpp
+class Base {
+public:
+    void afficher() const {
+        cout << "Base" << endl;
+    }
+};
+
+class Derivee : public Base {
+public:
+    void afficher() const {
+        cout << "Derivee" << endl;
+    }
+};
+
+Base* p = new Derivee();
+p->afficher(); // affiche "Base" si afficher n'est pas virtual
+delete p;
+```
+
+Avec `virtual`, le choix depend du vrai type de l'objet pendant l'execution. C'est la liaison dynamique.
+
+```cpp
+class Base {
+public:
+    virtual void afficher() const {
+        cout << "Base" << endl;
+    }
+
+    virtual ~Base() {}
+};
+
+class Derivee : public Base {
+public:
+    void afficher() const override {
+        cout << "Derivee" << endl;
+    }
+};
+
+Base* p = new Derivee();
+p->afficher(); // affiche "Derivee"
+delete p;      // appelle bien ~Derivee puis ~Base si destructeur virtuel
+```
+
+#### `override`
+`override` ne rend pas une fonction virtuelle. Il sert a demander au compilateur : "verifie que je redefinis bien une methode virtuelle de la classe mere".
+
+```cpp
+class Base {
+public:
+    virtual void f(int) const;
+};
+
+class Derivee : public Base {
+public:
+    void f(double) const override; // erreur : signature differente
+};
+```
+
+Sans `override`, ce genre d'erreur peut passer inaperçu : on croit redefinir, mais on cree une nouvelle methode.
+
+#### `= 0` : virtuelle pure
+```cpp
+class Figure {
+public:
+    virtual double aire() const = 0;
+};
+```
+
+`= 0` signifie : la classe impose cette fonction aux classes filles. La classe devient abstraite, donc non instanciable.
+
+```cpp
+// Figure f; // interdit
+```
+
+Une classe derivee doit implementer toutes les methodes virtuelles pures pour pouvoir etre instanciee.
+
+#### Destructeur virtuel
+Si une classe est faite pour etre manipulee par pointeur/reference de base, son destructeur doit etre virtuel.
+
+```cpp
+class Figure {
+public:
+    virtual double aire() const = 0;
+    virtual ~Figure() {}
+};
+```
+
+Pourquoi ? Si on fait :
+```cpp
+Figure* f = new Cercle();
+delete f;
+```
+
+Sans destructeur virtuel dans `Figure`, le destructeur de `Cercle` risque de ne pas etre appele correctement. Probleme classique : fuite memoire ou liberation incomplete.
+
+#### `final`
+`final` ferme une possibilite.
+
+```cpp
+class Base {
+public:
+    virtual void f() final;
+};
+
+class Derniere final {
+};
+```
+
+- Sur une methode virtuelle : interdit aux classes filles de la redefinir.
+- Sur une classe : interdit d'en heriter.
+
+#### Resume express
+- `virtual` : active le choix dynamique de la methode.
+- `override` : verifie une vraie redefinition.
+- `= 0` : methode virtuelle pure, classe abstraite.
+- `virtual ~Base()` : indispensable si destruction via pointeur de base.
+- `final` : interdit la redefinition ou l'heritage.
 
 ### Classe abstraite
 - Une methode virtuelle pure se declare avec `= 0`.

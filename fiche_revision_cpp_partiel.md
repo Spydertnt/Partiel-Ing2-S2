@@ -188,12 +188,6 @@ private:
 public:
     Vector(unsigned int s) : elem{new double[s]}, sz{s} {}
 
-    // Le constructeur ci-dessus utilise une liste d'initialisation :
-    // - elem{new double[s]} initialise le pointeur elem avec l'adresse d'un tableau dynamique de s double.
-    // - sz{s} initialise l'attribut sz avec la valeur du parametre s.
-    // La partie apres ':' est executee avant le corps entre accolades {}.
-    // Ici le corps est vide, car tout le travail d'initialisation est deja fait avant.
-
     Vector(const Vector& a) : elem{new double[a.sz]}, sz{a.sz} {
         for (unsigned int i = 0; i < sz; ++i) elem[i] = a.elem[i];
     }
@@ -212,6 +206,132 @@ public:
         delete[] elem;
     }
 };
+```
+
+#### Explication de `elem{new double[s]}`
+
+`elem{new double[s]}` fait partie de la liste d'initialisation du constructeur :
+
+```cpp
+Vector(unsigned int s) : elem{new double[s]}, sz{s} {}
+```
+
+Cela signifie presque :
+
+```cpp
+elem = new double[s];
+```
+
+mais c'est fait directement au moment de la construction de l'objet.
+
+`new double[s]` cree un tableau dynamique de `s` nombres de type `double`.
+
+Par exemple, si on ecrit :
+
+```cpp
+Vector v(4);
+```
+
+alors `s` vaut `4`, donc :
+
+```cpp
+elem{new double[4]}
+```
+
+cree en memoire un tableau comme ceci :
+
+```text
+elem
+ |
+ v
+[ double ][ double ][ double ][ double ]
+```
+
+`elem` recoit l'adresse du premier element du tableau.
+
+Donc :
+
+```cpp
+elem{new double[s]}
+```
+
+veut dire : initialise le pointeur `elem` avec l'adresse d'un nouveau tableau dynamique de `s` `double`.
+
+Attention : avec :
+
+```cpp
+new double[s]
+```
+
+les valeurs ne sont pas forcement initialisees. Le tableau peut contenir des valeurs indeterminees.
+
+Pour initialiser les valeurs a `0.0`, on peut ecrire :
+
+```cpp
+elem{new double[s]{}}
+```
+
+La, toutes les cases valent `0.0`.
+
+#### Pourquoi c'est avant les `{}` ?
+
+Parce que c'est la syntaxe de la liste d'initialisation d'un constructeur en C++.
+
+```cpp
+Vector(unsigned int s) : elem{new double[s]}, sz{s} {}
+```
+
+La partie apres `:` et avant le corps `{}` sert a initialiser directement les attributs de l'objet.
+
+Donc ici :
+
+```cpp
+: elem{new double[s]}, sz{s}
+```
+
+initialise les attributs :
+
+- `elem` ;
+- `sz`.
+
+avant d'entrer dans le corps du constructeur :
+
+```cpp
+{}
+```
+
+Le corps du constructeur est vide ici, parce que tout a deja ete fait avant.
+
+On pourrait ecrire, moins bien :
+
+```cpp
+Vector(unsigned int s) {
+    elem = new double[s];
+    sz = s;
+}
+```
+
+Mais avec cette version, `elem` et `sz` sont d'abord crees, puis affectes ensuite.
+
+Avec la liste d'initialisation :
+
+```cpp
+Vector(unsigned int s) : elem{new double[s]}, sz{s} {}
+```
+
+ils sont initialises directement.
+
+C'est obligatoire ou fortement recommande pour certains cas, par exemple avec des attributs `const`, des references, ou des objets sans constructeur par defaut.
+
+A lire comme ca :
+
+```cpp
+Vector(unsigned int s)
+    : elem{new double[s]},  // initialise elem
+      sz{s}                 // initialise sz
+{
+    // corps du constructeur
+}
 ```
 
 ### Pieges
@@ -743,4 +863,6 @@ void echanger(T& a, T& b);
 - Je sais utiliser `try`, `throw`, `catch`.
 - Je sais ecrire une fonction template simple.
 - Je connais `vector`, `list`, `map`, iterateurs et `algorithm`.
+
+
 

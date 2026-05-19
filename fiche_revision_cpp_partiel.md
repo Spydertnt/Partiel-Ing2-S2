@@ -188,6 +188,12 @@ private:
 public:
     Vector(unsigned int s) : elem{new double[s]}, sz{s} {}
 
+    // Le constructeur ci-dessus utilise une liste d'initialisation :
+    // - elem{new double[s]} initialise le pointeur elem avec l'adresse d'un tableau dynamique de s double.
+    // - sz{s} initialise l'attribut sz avec la valeur du parametre s.
+    // La partie apres ':' est executee avant le corps entre accolades {}.
+    // Ici le corps est vide, car tout le travail d'initialisation est deja fait avant.
+
     Vector(const Vector& a) : elem{new double[a.sz]}, sz{a.sz} {
         for (unsigned int i = 0; i < sz; ++i) elem[i] = a.elem[i];
     }
@@ -389,7 +395,7 @@ public:
 };
 ```
 
-Sans `override`, ce genre d'erreur peut passer inaperçu : on croit redefinir, mais on cree une nouvelle methode.
+Sans `override`, ce genre d'erreur peut passer inaperÃ§u : on croit redefinir, mais on cree une nouvelle methode.
 
 #### `= 0` : virtuelle pure
 ```cpp
@@ -602,6 +608,13 @@ private:
     unsigned int sz;
 public:
     Vector(unsigned int s) : elem{new T[s]}, sz{s} {}
+
+    // Explication :
+    // - elem est un pointeur de type T*.
+    // - new T[s] alloue sur le tas un tableau de s elements de type T.
+    // - elem{new T[s]} met dans elem l'adresse du premier element du tableau.
+    // - sz{s} copie la taille demandee dans l'attribut sz.
+    // - les accolades finales {} sont le corps du constructeur. Il est vide ici.
     ~Vector() { delete[] elem; }
 
     T& operator[](unsigned int i) { return elem[i]; }
@@ -730,3 +743,4 @@ void echanger(T& a, T& b);
 - Je sais utiliser `try`, `throw`, `catch`.
 - Je sais ecrire une fonction template simple.
 - Je connais `vector`, `list`, `map`, iterateurs et `algorithm`.
+

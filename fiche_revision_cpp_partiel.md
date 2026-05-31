@@ -47,6 +47,31 @@ const int max = 10;
 // max = 12; // interdit
 ```
 
+#### `const` avant le type de retour
+```cpp
+const int getNumerateur() const {
+    return numerateur;
+}
+```
+
+Le premier `const`, avant `int`, concerne la valeur retournee. Pour un type simple retourne par valeur comme `int`, il est peu utile, car on retourne deja une copie.
+
+On ecrit donc plutot :
+```cpp
+int getNumerateur() const {
+    return numerateur;
+}
+```
+
+Le `const` avant le type devient surtout utile quand on retourne une reference ou un pointeur :
+```cpp
+const string& getNom() const {
+    return nom;
+}
+```
+
+Ici, on donne acces au vrai `nom`, mais en lecture seule.
+
 #### Passage par reference constante
 On l'utilise tres souvent pour eviter une copie sans autoriser la modification.
 ```cpp
@@ -162,6 +187,26 @@ Fraction::Fraction(int n, int d) : numerateur{n}, denominateur{d} {}
 ```cpp
 Fraction::~Fraction() {}
 ```
+
+### Classe canonique
+Dans beaucoup de cours, une classe canonique contient explicitement :
+```cpp
+class Point {
+public:
+    Point();                         // constructeur par defaut
+    Point(const Point& autre);        // constructeur de recopie
+    Point& operator=(const Point& autre); // affectation
+    ~Point();                        // destructeur
+};
+```
+
+Si on ecrit un constructeur avec parametres, par exemple :
+```cpp
+Point(short x, short y);
+```
+le compilateur ne genere plus automatiquement le constructeur sans argument `Point()`.
+
+Pour une classe qui gere une ressource dynamique, il faut penser a la regle des trois : destructeur, constructeur de copie, operateur d'affectation.
 
 ### Pile vs tas
 ```cpp
@@ -308,6 +353,19 @@ ostream& operator<<(ostream& out, const Fraction& f) {
 }
 ```
 
+Une fonction amie n'est pas une methode membre. Elle est declaree dans la classe avec `friend`, puis souvent definie en dehors de la classe. Elle ne s'appelle pas avec `f.operator<<()`, mais comme une fonction ou un operateur normal.
+
+`ostream` signifie `output stream`, donc flux de sortie. `cout` est un `ostream`, mais un fichier `ofstream` est aussi un flux de sortie. C'est pour ca qu'on ecrit dans `out` au lieu d'ecrire directement dans `cout`.
+
+Dans un `operator<<`, on evite generalement de mettre `endl`. L'operateur doit seulement dire comment afficher l'objet ; c'est l'utilisateur qui choisit ensuite :
+```cpp
+cout << f;         // sans retour ligne
+cout << f << endl; // avec retour ligne
+cout << f << " ";  // avec espace
+```
+
+`endl` fait deux choses : retour a la ligne et vidage immediat du flux. Pour un simple retour ligne, `\n` suffit souvent.
+
 ### A savoir coder
 ```cpp
 bool operator==(const Complexe& a, const Complexe& b) {
@@ -342,6 +400,26 @@ public:
     Etudiant(string nom, string id) : Personne{nom}, id{id} {}
 };
 ```
+
+#### Heritage `public`, `protected`, `private`
+```cpp
+class Fille : public Mere {};
+class Fille : protected Mere {};
+class Fille : private Mere {};
+```
+
+- `public` : relation "est un". Un `Etudiant` est une `Personne`. C'est l'heritage classique pour le polymorphisme.
+- `protected` : les membres publics de la mere deviennent `protected` dans la fille. L'heritage reste utilisable dans la classe fille et ses futures classes filles, mais pas depuis l'exterieur.
+- `private` : les membres publics/protected de la mere deviennent `private` dans la fille. La classe fille utilise la classe mere en interne, mais ne l'expose pas.
+
+Tableau mental :
+```text
+Heritage public    : public -> public,    protected -> protected
+Heritage protected : public -> protected, protected -> protected
+Heritage private   : public -> private,   protected -> private
+```
+
+Dans tous les cas, les attributs `private` de la classe mere restent inaccessibles directement dans la classe fille. Il faut des getters ou passer les attributs en `protected`.
 
 ### Ordre constructeur/destructeur
 - Construction : base puis derivee.
@@ -437,7 +515,7 @@ public:
 };
 ```
 
-Sans `override`, ce genre d'erreur peut passer inaperÃ§u : on croit redefinir, mais on cree une nouvelle methode.
+Sans `override`, ce genre d'erreur peut passer inapercu : on croit redefinir, mais on cree une nouvelle methode.
 
 #### `= 0` : virtuelle pure
 ```cpp
@@ -454,6 +532,19 @@ public:
 ```
 
 Une classe derivee doit implementer toutes les methodes virtuelles pures pour pouvoir etre instanciee.
+
+Une fonction est virtuelle pure seulement si elle contient `= 0` :
+```cpp
+virtual void afficher() const = 0;
+```
+
+On ne met pas d'accolades directement avec `= 0` dans la classe :
+```cpp
+virtual void afficher() const = 0; // oui
+// virtual void afficher() const = 0 {} // non
+```
+
+Le `const` avant `= 0` signifie que la methode ne modifie pas l'objet. Le `= 0` signifie que la methode est obligatoire dans les classes filles.
 
 #### Destructeur virtuel
 Si une classe est faite pour etre manipulee par pointeur/reference de base, son destructeur doit etre virtuel.
@@ -507,6 +598,21 @@ class Derniere final {
 - Methode non virtuelle : implementation obligatoire heritee telle quelle.
 - Methode virtuelle : implementation par defaut redefinissable.
 - Methode virtuelle pure : interface obligatoire, implementation imposee aux classes concretes.
+
+### Appel avec `.` ou `->`
+```cpp
+objet.afficher();      // objet normal ou reference
+pointeur->afficher();  // pointeur
+```
+
+La fleche est un raccourci :
+```cpp
+p->afficher();
+```
+veut dire :
+```cpp
+(*p).afficher();
+```
 
 ### Pieges
 - Pour detruire via un pointeur de base, le destructeur de la base doit etre `virtual`.
@@ -619,6 +725,16 @@ public:
 };
 ```
 
+Explication :
+- `std::string` est le nom complet de `string`, car `string` appartient au namespace `std`.
+- `what()` est la methode standard qui retourne le message de l'exception.
+- `const char*` est une chaine C classique ; `what()` doit retourner ce type.
+- `phrase.c_str()` transforme la `std::string` en `const char*`.
+- `noexcept` signifie que la methode promet de ne pas lancer d'exception.
+- `override` verifie qu'on redefinit bien `std::exception::what()`.
+
+A ne pas faire : retourner `c_str()` d'une variable locale, car elle serait detruite a la fin de la fonction.
+
 ### Propagation
 - Si une fonction ne capture pas l'exception, elle remonte a l'appelant.
 - Dans un `catch`, `throw;` relance la meme exception.
@@ -686,6 +802,23 @@ for (int x : v) {
 }
 ```
 
+`vector<int>::iterator` signifie : type d'un iterateur permettant de parcourir un `vector<int>`.
+
+- `v.begin()` pointe sur le premier element.
+- `v.end()` pointe juste apres le dernier element.
+- `*it` donne l'element courant.
+- `++it` avance a l'element suivant.
+
+Avec un conteneur de pointeurs :
+```cpp
+vector<Point*> points;
+for (vector<Point*>::iterator it = points.begin(); it != points.end(); ++it) {
+    (*it)->decrire();
+}
+```
+
+Ici, `*it` donne un `Point*`, donc on utilise `->` pour appeler la methode.
+
 ### Algorithmes
 ```cpp
 #include <algorithm>
@@ -710,6 +843,55 @@ public:
 - Un algorithme STL travaille souvent avec `[begin, end)`.
 - `end()` ne pointe pas sur le dernier element, mais juste apres.
 
+## Focus examen 2024 - Exercice 4
+
+### Points a retenir
+- `Point(short abs, short ord) : x(abs), y(ord) {}` utilise une liste d'initialisation.
+- `PointCol(short abs, short ord, unsigned int cl) : Point(abs, ord), color(cl) {}` est plus propre que d'affecter `color` dans le corps du constructeur.
+- `short` est un entier signe de petite taille, souvent 2 octets. Il peut etre negatif.
+- `unsigned int` est un entier non signe : positif ou nul.
+- Si `x` et `y` sont `private` dans `Point`, `PointCol` ne peut pas y acceder directement.
+- Correction possible : ajouter `getX()` / `getY()` ou mettre `x` et `y` en `protected`.
+- `class PointCol : public Point` signifie qu'un `PointCol` est un `Point`.
+- `Point* p = new PointCol(...)` est autorise : pointeur de classe mere vers objet de classe fille.
+- `PointCol* pc = new Point(...)` est interdit : un `Point` n'est pas forcement un `PointCol`.
+- Si `decrire()` est `virtual`, alors `p->decrire()` appelle la methode du vrai type de l'objet.
+
+### Classe canonique dans l'exercice
+Pour la question 3, on peut repondre que `Point` n'est pas canonique car il manque explicitement :
+```cpp
+Point();
+Point(const Point& autre);
+Point& operator=(const Point& autre);
+```
+Le constructeur sans argument manque aussi, car le constructeur avec parametres empeche sa generation automatique.
+
+### Sortie apres suppression de la ligne fausse
+```cpp
+Point *p1 = new Point(3,5);
+p1->decrire();
+
+PointCol *pc1 = new PointCol(8,6,2);
+pc1->decrire();
+
+Point *p2 = new PointCol(8,6,5);
+p2->decrire();
+```
+
+Sortie :
+```text
+je suis un point
+mes coordonnees : 3 5
+je suis un point colore
+mes coordonnees : 8 6 et ma couleur : 2
+je suis un point colore
+mes coordonnees : 8 6 et ma couleur : 5
+```
+
+Remarque propre : comme `Point` est utilisee comme classe de base polymorphe, son destructeur devrait etre virtuel :
+```cpp
+virtual ~Point() {}
+```
 ## Questions type partiel
 
 1. Expliquer la difference entre constructeur de copie et operateur d'affectation.
@@ -785,6 +967,8 @@ void echanger(T& a, T& b);
 - Je sais utiliser `try`, `throw`, `catch`.
 - Je sais ecrire une fonction template simple.
 - Je connais `vector`, `list`, `map`, iterateurs et `algorithm`.
+
+
 
 
 
